@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Wallet,
   TrendingUp,
@@ -12,9 +12,63 @@ import {
   ArrowUpFromLine,
 } from "lucide-react";
 
+const coins = [
+  { id: "bitcoin", name: "Bitcoin", symbol: "BTC" },
+  { id: "ethereum", name: "Ethereum", symbol: "ETH" },
+  { id: "solana", name: "Solana", symbol: "SOL" },
+  { id: "bnb", name: "BNB", symbol: "BNB" },
+];
+
 export default function Home() {
   const [menuOpen, setMenuOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("Markets");
+  const [markets, setMarkets] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  async function loadMarkets() {
+    try {
+      const response = await fetch("/api/markets");
+
+      if (!response.ok) {
+        throw new Error("Market request failed");
+      }
+
+      const data = await response.json();
+      setMarkets(data);
+    } catch (error) {
+      console.error(error);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    loadMarkets();
+
+    const interval = setInterval(loadMarkets, 30000);
+
+    return () => clearInterval(interval);
+  }, []);
+
+  function getCoinData(id) {
+    return markets?.[id] || {};
+  }
+
+  function formatPrice(price) {
+    if (price === null || price === undefined) return "--";
+
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+      maximumFractionDigits: price < 1 ? 6 : 2,
+    }).format(price);
+  }
+
+  function formatChange(change) {
+    if (change === null || change === undefined) return "--";
+
+    return `${change >= 0 ? "+" : ""}${change.toFixed(2)}%`;
+  }
 
   return (
     <main className="min-h-screen bg-[#050505] text-white">
@@ -25,7 +79,9 @@ export default function Home() {
             <h1 className="text-2xl font-black tracking-wider text-red-500">
               METROPOLY
             </h1>
-            <p className="text-xs text-gray-500">Digital Asset Platform</p>
+            <p className="text-xs text-gray-500">
+              Digital Asset Platform
+            </p>
           </div>
 
           <nav className="hidden gap-6 md:flex">
@@ -75,11 +131,14 @@ export default function Home() {
         <div className="grid gap-4 md:grid-cols-3">
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm text-gray-400">Wallet Balance</span>
+              <span className="text-sm text-gray-400">
+                Wallet Balance
+              </span>
               <Wallet className="text-red-500" size={21} />
             </div>
 
             <h2 className="text-3xl font-bold">$0.00</h2>
+
             <p className="mt-1 text-xs text-gray-500">
               Available balance
             </p>
@@ -87,11 +146,14 @@ export default function Home() {
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm text-gray-400">Portfolio</span>
+              <span className="text-sm text-gray-400">
+                Portfolio
+              </span>
               <TrendingUp className="text-green-500" size={21} />
             </div>
 
             <h2 className="text-3xl font-bold">$0.00</h2>
+
             <p className="mt-1 text-xs text-gray-500">
               Current portfolio value
             </p>
@@ -99,13 +161,19 @@ export default function Home() {
 
           <div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
             <div className="mb-3 flex items-center justify-between">
-              <span className="text-sm text-gray-400">24h Change</span>
-              <TrendingDown className="text-gray-500" size={21} />
+              <span className="text-sm text-gray-400">
+                Market Status
+              </span>
+
+              <div className="h-3 w-3 animate-pulse rounded-full bg-green-500" />
             </div>
 
-            <h2 className="text-3xl font-bold">0.00%</h2>
+            <h2 className="text-xl font-bold">
+              {loading ? "Connecting..." : "LIVE"}
+            </h2>
+
             <p className="mt-1 text-xs text-gray-500">
-              Live market movement
+              Market data connection
             </p>
           </div>
         </div>
@@ -127,9 +195,12 @@ export default function Home() {
         <section className="mt-8">
           <div className="mb-4 flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold">Crypto Markets</h2>
+              <h2 className="text-xl font-bold">
+                Crypto Markets
+              </h2>
+
               <p className="text-sm text-gray-500">
-                Live market data will appear here
+                Real market prices
               </p>
             </div>
 
@@ -137,41 +208,60 @@ export default function Home() {
           </div>
 
           <div className="overflow-hidden rounded-2xl border border-white/10">
-            {[
-              ["Bitcoin", "BTC", "$0.00"],
-              ["Ethereum", "ETH", "$0.00"],
-              ["Solana", "SOL", "$0.00"],
-              ["BNB", "BNB", "$0.00"],
-            ].map(([name, symbol, price]) => (
-              <div
-                key={symbol}
-                className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] p-4 last:border-0"
-              >
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold">
-                    {symbol[0]}
+            {coins.map((coin) => {
+              const data = getCoinData(coin.id);
+              const change = data.change24h;
+
+              return (
+                <div
+                  key={coin.id}
+                  className="flex items-center justify-between border-b border-white/10 bg-white/[0.02] p-4 last:border-0"
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 font-bold">
+                      {coin.symbol[0]}
+                    </div>
+
+                    <div>
+                      <p className="font-semibold">
+                        {coin.name}
+                      </p>
+
+                      <p className="text-xs text-gray-500">
+                        {coin.symbol}
+                      </p>
+                    </div>
                   </div>
 
-                  <div>
-                    <p className="font-semibold">{name}</p>
-                    <p className="text-xs text-gray-500">{symbol}</p>
+                  <div className="text-right">
+                    <p className="font-semibold">
+                      {formatPrice(data.price)}
+                    </p>
+
+                    <p
+                      className={`text-xs ${
+                        change >= 0
+                          ? "text-green-400"
+                          : "text-red-400"
+                      }`}
+                    >
+                      {formatChange(change)}
+                    </p>
                   </div>
                 </div>
-
-                <div className="text-right">
-                  <p className="font-semibold">{price}</p>
-                  <p className="text-xs text-gray-500">Loading...</p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </section>
 
-        {/* TRADE PANEL */}
+        {/* TRADE */}
         <section className="mt-8 rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-          <h2 className="text-xl font-bold">Trade</h2>
+          <h2 className="text-xl font-bold">
+            Trade
+          </h2>
+
           <p className="mt-1 text-sm text-gray-500">
-            Trading interface will connect to real market data.
+            Trading interface
           </p>
 
           <div className="mt-5 grid gap-3 sm:grid-cols-2">
@@ -185,12 +275,14 @@ export default function Home() {
           </div>
         </section>
 
-        {/* SECURITY NOTICE */}
+        {/* SECURITY */}
         <div className="mt-8 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4 text-sm text-gray-400">
-          <strong className="text-yellow-400">Security notice:</strong>{" "}
-          Deposits and withdrawals will be connected only to legitimate,
-          verifiable payment/crypto services. No fake balances or fake
-          transaction confirmations will be used.
+          <strong className="text-yellow-400">
+            Security notice:
+          </strong>{" "}
+          METROPOLY will use legitimate payment and crypto
+          services for deposits and withdrawals. No fake balances
+          or fake transaction confirmations will be used.
         </div>
       </section>
 
