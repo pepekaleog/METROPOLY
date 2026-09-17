@@ -8,24 +8,55 @@ import {
   ShieldCheck,
   Copy,
   Check,
+  Loader2,
 } from "lucide-react";
 
 export default function WalletPage() {
   const [active, setActive] = useState("deposit");
-  const [copied, setCopied] = useState(false);
+  const [phone, setPhone] = useState("");
+  const [amount, setAmount] = useState("");
+  const [operator, setOperator] = useState("");
+  const [status, setStatus] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  // This is a placeholder until a real wallet/payment provider is connected.
-  const depositAddress = "Connect real wallet provider";
+  async function createDeposit() {
+    setStatus("");
 
-  function copyAddress() {
-    if (depositAddress.startsWith("Connect")) return;
+    if (!phone || !amount || !operator) {
+      setStatus("Please fill in all deposit fields.");
+      return;
+    }
 
-    navigator.clipboard.writeText(depositAddress);
-    setCopied(true);
+    setLoading(true);
 
-    setTimeout(() => {
-      setCopied(false);
-    }, 2000);
+    try {
+      const response = await fetch("/api/deposit", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          phone,
+          amount,
+          operator,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setStatus(data.error || "Deposit request failed.");
+        return;
+      }
+
+      setStatus(
+        `Sandbox request created. Transaction ID: ${data.transaction.id}`
+      );
+    } catch (error) {
+      setStatus("Unable to connect to METROPOLY server.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   return (
@@ -66,6 +97,7 @@ export default function WalletPage() {
 
         {/* TABS */}
         <div className="mt-6 grid grid-cols-2 gap-2 rounded-xl bg-white/[0.03] p-1">
+
           <button
             onClick={() => setActive("deposit")}
             className={`flex items-center justify-center gap-2 rounded-lg py-3 font-bold ${
@@ -89,6 +121,7 @@ export default function WalletPage() {
             <ArrowUpFromLine size={18} />
             Withdraw
           </button>
+
         </div>
 
         {/* DEPOSIT */}
@@ -96,50 +129,107 @@ export default function WalletPage() {
           <section className="mt-6 rounded-2xl border border-white/10 bg-white/[0.03] p-6">
 
             <h2 className="text-xl font-bold">
-              Deposit Crypto
+              Deposit TZS
             </h2>
 
             <p className="mt-2 text-sm text-gray-500">
-              Your deposit address will appear here after a
-              legitimate wallet provider is connected.
+              Create a sandbox deposit request using
+              Tanzania mobile money.
             </p>
 
-            <div className="mt-6 rounded-xl border border-yellow-500/20 bg-yellow-500/5 p-4">
-              <p className="text-sm text-yellow-400">
-                Wallet connection required
-              </p>
-
-              <p className="mt-1 text-xs text-gray-500">
-                No real deposit address is generated yet.
-                Never send funds to an unverified address.
-              </p>
-            </div>
-
-            <div className="mt-5">
+            {/* OPERATOR */}
+            <div className="mt-6">
               <label className="text-xs text-gray-500">
-                Deposit Address
+                Mobile Money
               </label>
 
-              <div className="mt-2 flex gap-2">
-                <input
-                  value={depositAddress}
-                  readOnly
-                  className="w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-sm text-gray-500 outline-none"
-                />
+              <select
+                value={operator}
+                onChange={(e) => setOperator(e.target.value)}
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
+              >
+                <option value="">
+                  Select operator
+                </option>
 
-                <button
-                  onClick={copyAddress}
-                  disabled={depositAddress.startsWith("Connect")}
-                  className="rounded-xl border border-white/10 px-4 text-gray-500"
-                >
-                  {copied ? (
-                    <Check size={19} />
-                  ) : (
-                    <Copy size={19} />
-                  )}
-                </button>
-              </div>
+                <option value="mpesa">
+                  M-Pesa
+                </option>
+
+                <option value="airtel">
+                  Airtel Money
+                </option>
+
+                <option value="mixx">
+                  Mixx by Yas
+                </option>
+
+                <option value="halopesa">
+                  HaloPesa
+                </option>
+              </select>
             </div>
+
+            {/* PHONE */}
+            <div className="mt-4">
+              <label className="text-xs text-gray-500">
+                Phone Number
+              </label>
+
+              <input
+                type="tel"
+                value={phone}
+                onChange={(e) => setPhone(e.target.value)}
+                placeholder="07XXXXXXXX"
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            {/* AMOUNT */}
+            <div className="mt-4">
+              <label className="text-xs text-gray-500">
+                Amount (TZS)
+              </label>
+
+              <input
+                type="number"
+                min="100"
+                value={amount}
+                onChange={(e) => setAmount(e.target.value)}
+                placeholder="Enter amount"
+                className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
+              />
+            </div>
+
+            {/* BUTTON */}
+            <button
+              onClick={createDeposit}
+              disabled={loading}
+              className="mt-6 flex w-full items-center justify-center gap-2 rounded-xl bg-red-600 py-4 font-bold transition hover:bg-red-500 disabled:opacity-50"
+            >
+              {loading ? (
+                <>
+                  <Loader2
+                    size={20}
+                    className="animate-spin"
+                  />
+                  Processing...
+                </>
+              ) : (
+                <>
+                  <ArrowDownToLine size={20} />
+                  Create Deposit Request
+                </>
+              )}
+            </button>
+
+            {/* STATUS */}
+            {status && (
+              <div className="mt-4 rounded-xl border border-white/10 bg-black p-4 text-sm text-gray-300 break-all">
+                {status}
+              </div>
+            )}
+
           </section>
         )}
 
@@ -152,46 +242,46 @@ export default function WalletPage() {
             </h2>
 
             <p className="mt-2 text-sm text-gray-500">
-              Withdrawals will become available after a
-              legitimate payment/wallet provider is connected.
+              Withdrawals will be enabled after the
+              legitimate payment provider is connected.
             </p>
 
             <div className="mt-6 space-y-4">
 
               <div>
                 <label className="text-xs text-gray-500">
-                  Network
+                  Mobile Money
                 </label>
 
                 <select className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none">
-                  <option>Select network</option>
-                  <option>Bitcoin</option>
-                  <option>Ethereum</option>
-                  <option>BNB Smart Chain</option>
-                  <option>Solana</option>
+                  <option>Select operator</option>
+                  <option>M-Pesa</option>
+                  <option>Airtel Money</option>
+                  <option>Mixx by Yas</option>
+                  <option>HaloPesa</option>
                 </select>
               </div>
 
               <div>
                 <label className="text-xs text-gray-500">
-                  Wallet Address
+                  Phone Number
                 </label>
 
                 <input
-                  type="text"
-                  placeholder="Enter recipient wallet address"
+                  type="tel"
+                  placeholder="07XXXXXXXX"
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
                 />
               </div>
 
               <div>
                 <label className="text-xs text-gray-500">
-                  Amount
+                  Amount (TZS)
                 </label>
 
                 <input
                   type="number"
-                  placeholder="0.00"
+                  placeholder="0"
                   className="mt-2 w-full rounded-xl border border-white/10 bg-black px-4 py-3 text-white outline-none"
                 />
               </div>
@@ -204,11 +294,13 @@ export default function WalletPage() {
               </button>
 
             </div>
+
           </section>
         )}
 
         {/* SECURITY */}
         <div className="mt-6 flex gap-3 rounded-xl border border-green-500/20 bg-green-500/5 p-4">
+
           <ShieldCheck
             className="shrink-0 text-green-500"
             size={22}
@@ -220,10 +312,11 @@ export default function WalletPage() {
             </p>
 
             <p className="mt-1 text-xs text-gray-500">
-              METROPOLY will only process real deposits and
-              withdrawals through verified services.
+              Deposits are currently in sandbox mode.
+              No real money is moved by this page.
             </p>
           </div>
+
         </div>
 
         <p className="mt-8 text-center text-xs text-gray-700">
@@ -233,4 +326,4 @@ export default function WalletPage() {
       </div>
     </main>
   );
-      }
+}
